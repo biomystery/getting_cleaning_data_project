@@ -29,24 +29,47 @@ unzip("./data/data.zip",exdir="./data/")
 
 # You should create one R script called run_analysis.R that does the following. 
 # 1. Merges the training and the test sets to create one data set.
-library(data.table)
-train_set_obj <-
-train_set_label <- fread("./data/UCI HAR Dataset/train/y_train.txt",header=F)
-train_set_value <- fread("./data/UCI HAR Dataset/train/x_train.txt",header=F)
-train_set_value <-cbind(train_set_value,label=train_set_label);rm(train_set_label)
-head(train_set_value,n=3)
+train_set_sub <-read.table(file="./data/UCI HAR Dataset/train/subject_train.txt",header=F)
 
-test_set_label <- read.csv(file="./data/UCI HAR Dataset/test/y_test.txt",header=FALSE)
-test_set_value <- read.table(file="./data/UCI HAR Dataset/test/X_test.txt")
-test_set_value <-cbind(test_set_value,test_set_label);rm(test_set_label)
-head(test_set_value,n=3)
+train_set_y <- read.table(file="./data/UCI HAR Dataset/train/y_train.txt",header=F)
 
-merge_date <-merge(train_set_value,test_set_value,all=TRUE)
-head(merge_date,n=3)
+train_set_x <- read.table(file="./data/UCI HAR Dataset/train/x_train.txt",header=F)
+
+test_set_sub <-read.table(file="./data/UCI HAR Dataset/test/subject_test.txt",header=F)
+test_set_y <- read.table(file="./data/UCI HAR Dataset/test/y_test.txt",header=F)
+test_set_x <- read.table(file="./data/UCI HAR Dataset/test/X_test.txt",header=F)
+
+names(train_set_sub) <- "sub"
+names(train_set_y) <- "y"
+names(test_set_sub) <- "sub"
+names(test_set_y) <- "y"
+
+merge_data <-rbind(cbind(train_set_sub,train_set_x,y=train_set_y,dataset=rep("train",dim(train_set_sub)[1])),
+                   cbind(test_set_sub,test_set_x,y=test_set_y,dataset=rep("test",dim(test_set_sub)[1])))
+head(merge_data,n=3)
 
 # 2. Extracts only the measurements on the mean and standard deviation for 
-#    each measurement. 
+#    each measurement
+feature_table<-read.table(file="./data//UCI HAR Dataset//features.txt")
+features.mean_std <- feature_table[grep("mean\\(\\)|std\\(\\)", feature_table$V2), ]
+merge_data.mean_std <- merge_data[, c(1, features.mean_std$V1+2,563:564)]
+
 # 3. Uses descriptive activity names to name the activities in the data set
+act_table<- read.table(file="./data/UCI HAR Dataset//activity_labels.txt")
+merge_data$y <- act_table[merge_data.mean_std$y,2]
+head(merge_data.mean_std$y)
+
 # 4. Appropriately labels the data set with descriptive variable names. 
+feature_table<-read.table(file="./data//UCI HAR Dataset//features.txt")
+
+names(merge_data.mean_std)[2:67]<-as.character(features.mean_std[,2])
+head(names(merge_data));tail(names(merge_data))
 # 5. From the data set in step 4, creates a second, independent tidy data set 
 #    with the average of each variable for each activity and each subject.
+tidy_data <- aggregate(merge_data.mean_std[,2:67],
+                       by=list(subject = merge_data.mean_std$sub, 
+                               label = merge_data.mean_std$y),
+                       mean)
+head(tidy_data[1:10,1:10])
+write.table(format(tidy_data, scientific=T), "tidy.txt",
+            row.names=F, col.names=F, quote=2)
